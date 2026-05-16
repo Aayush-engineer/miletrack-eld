@@ -19,8 +19,8 @@ function AnimatedTruck() {
         {/* Trailer */}
         <rect x="2" y="22" width="110" height="42" rx="4" fill="#1a2e52" stroke="rgba(245,197,24,0.3)" strokeWidth="1"/>
         <rect x="8" y="28" width="96" height="30" rx="2" fill="#0f1c35"/>
-        {/* SPOTTER text on trailer */}
-        <text x="56" y="47" textAnchor="middle" fill="rgba(245,197,24,0.8)" fontSize="9" fontFamily="Syne, sans-serif" fontWeight="800" letterSpacing="2">SPOTTER</text>
+        {/* MileTrack text on trailer */}
+        <text x="56" y="47" textAnchor="middle" fill="rgba(245,197,24,0.8)" fontSize="9" fontFamily="Syne, sans-serif" fontWeight="800" letterSpacing="2">MileTrack</text>
         {/* Cab */}
         <rect x="112" y="28" width="52" height="36" rx="4" fill="#1e6eb5" stroke="rgba(255,255,255,0.1)" strokeWidth="1"/>
         {/* Windshield */}
@@ -88,7 +88,7 @@ export default function HomePage() {
                 <circle cx="19" cy="19" r="2.5" fill="#0f1c35"/>
               </svg>
             </div>
-            <span className="font-display text-white text-lg tracking-tight">SpotterELD</span>
+            <span className="font-display text-white text-lg tracking-tight">MileTrack</span>
           </div>
           <div className="hidden sm:flex items-center gap-4">
             <span className="text-white/30 text-xs font-mono">49 CFR Part 395</span>
@@ -212,7 +212,7 @@ export default function HomePage() {
       {/* ── Footer ── */}
       <footer className="relative z-10 border-t border-white/5 py-6">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p className="text-white/20 text-xs">© 2026 SpotterELD — Built for interstate drivers</p>
+          <p className="text-white/20 text-xs">© 2026 MileTrackELD — Built for interstate drivers</p>
           <p className="text-white/15 text-xs font-mono">OSRM · OpenStreetMap · Nominatim</p>
         </div>
       </footer>

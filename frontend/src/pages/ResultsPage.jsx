@@ -56,7 +56,7 @@ export default function ResultsPage() {
                 <circle cx="19" cy="19" r="2.5" fill="#0f1c35"/>
               </svg>
             </div>
-            <span className="font-display text-white text-sm hidden sm:block">SpotterELD</span>
+            <span className="font-display text-white text-sm hidden sm:block">MileTrack</span>
           </div>
 
           {formData && (
