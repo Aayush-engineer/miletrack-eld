@@ -281,52 +281,78 @@ function drawTotalHours(ctx, totalHours) {
 
 function drawRemarks(ctx, remarks, segments) {
   const TOP = GB + 28
-  const H   = 70
+  const H   = 80
 
+  // Background
   R(ctx, 0, TOP, LW, H, C.offWhite)
   L(ctx, 0, TOP,     LW, TOP,     C.navy, 1.2)
   L(ctx, 0, TOP + H, LW, TOP + H, C.navy, 0.6)
 
+  // Labels
   T(ctx, 'REMARKS', 8, TOP + 16, 'bold 11px Arial', C.navy, 'left')
-  T(ctx, 'Pro or Shipping No.: N/A', LW - 10, TOP + 16, F.labelSm, C.textGray, 'right')
+  T(ctx, 'Pro or Shipping No.: N/A', LW - 10, TOP + 16, '8px Arial', C.textGray, 'right')
 
+  // Tick marks
   if (segments) {
     const seen = new Set()
     for (const seg of segments) {
       const x = Math.round(tx(seg.start))
       if (!seen.has(x)) {
         seen.add(x)
-        L(ctx, x, TOP, x, TOP + 10, C.navy, 1)
+        L(ctx, x, TOP + 20, x, TOP + 30, C.navy, 1)
       }
     }
   }
 
   if (remarks?.length) {
-    remarks.forEach(remark => {
-      const parts   = remark.split(' - ')
-      const timeStr = parts[0] || ''
-      const loc     = parts.slice(1).join(' ') || ''
-      const x       = timeStr ? tx(timeStr) : GL
-      const short   = loc.length > 16 ? loc.substring(0, 15) + '…' : loc
+    const sorted = [...remarks].sort((a, b) => {
+      const tA = timeStringToDecimalHours((a.split(' - ')[0] || '').trim())
+      const tB = timeStringToDecimalHours((b.split(' - ')[0] || '').trim())
+      return tA - tB
+    })
 
-      L(ctx, x, TOP + 10, x, TOP + 18, C.textGray, 0.6)
+    let lastX = -999
+
+    sorted.forEach(remark => {
+      const parts   = remark.split(' - ')
+      const timeStr = (parts[0] || '').trim()
+      const loc     = (parts[2] || parts[1] || '').trim()
+      const x       = timeStr ? tx(timeStr) : GL
+
+      if (x - lastX < 44) return
+      lastX = x
+
+      const label = loc.length > 14 ? loc.substring(0, 13) + '…' : loc
+      if (!label) return
 
       ctx.save()
-      ctx.translate(x + 3, TOP + 21)
-      ctx.rotate(-Math.PI / 5)
-      ctx.font      = '7.5px Arial'
+      ctx.translate(x + 2, TOP + 52)  
+      ctx.rotate(-Math.PI / 6)
+      ctx.font      = 'bold 9px Arial'
       ctx.fillStyle = C.textDark
       ctx.textAlign = 'left'
-      ctx.fillText(short, 0, 0)
+      ctx.fillText(label, 0, 0)
       ctx.restore()
     })
   }
 
+  // Footer
   T(
     ctx,
     'Enter name of place you reported and where released from work, and each change of duty status. Use time standard of home terminal.',
-    10, TOP + H - 9, '7px Arial', C.textGray, 'left'
+    10, TOP + H - 8, '7px Arial', C.textGray, 'left'
   )
+}
+
+// Helper — abbreviate status names for remarks
+function _abbreviateStatus(status) {
+  const map = {
+    'off_duty':            'Off Duty',
+    'driving':             'Driving',
+    'on_duty_not_driving': 'On Duty',
+    'sleeper_berth':       'Sleeper',
+  }
+  return map[status] || status
 }
 
 function drawRecap(ctx, log) {
