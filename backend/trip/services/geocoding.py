@@ -1,46 +1,49 @@
-import time
 import logging
 import requests
 
 logger = logging.getLogger(__name__)
 
-NOMINATIM_URL = "https://nominatim.openstreetmap.org/search"
-USER_AGENT = "spotter-eld-app/1.0 (contact@spotter-eld.example.com)"
-RATE_LIMIT_SLEEP = 1.1  
+# ── Photon (komoot) — no rate limits, no API key, same OSM data ──
+PHOTON_URL = "https://photon.komoot.io/api/"
 
 
 def geocode_location(location_string: str) -> dict:
-    time.sleep(RATE_LIMIT_SLEEP)  # Respect Nominatim rate limit
+    # No sleep needed — Photon has no rate limits
 
     params = {
         'q': location_string,
-        'format': 'json',
         'limit': 1,
-        'addressdetails': 1,
+        'lang': 'en',
     }
     headers = {
-        'User-Agent': USER_AGENT,
-        'Accept-Language': 'en',
+        'User-Agent': 'MileTrack-ELD/1.0',
     }
 
     try:
         response = requests.get(
-            NOMINATIM_URL,
+            PHOTON_URL,
             params=params,
             headers=headers,
             timeout=30
         )
         response.raise_for_status()
-        results = response.json()
+        data = response.json()
 
-        if not results:
-            raise ValueError(f"Could not geocode location: '{location_string}'. "
-                             f"Please use a more specific location (e.g. 'Chicago, IL, USA').")
+        if not data.get('features'):
+            raise ValueError(
+                f"Could not geocode location: '{location_string}'. "
+                f"Please use a more specific location (e.g. 'Chicago, IL, USA')."
+            )
 
-        result = results[0]
-        lat = float(result['lat'])
-        lng = float(result['lon'])
-        display_name = result.get('display_name', location_string)
+        feature = data['features'][0]
+        coords = feature['geometry']['coordinates']  # Photon returns [lon, lat]
+        props = feature.get('properties', {})
+
+        lat = float(coords[1])
+        lng = float(coords[0])
+
+        # Build display name from Photon properties (same structure as before)
+        display_name = _build_display_name(props, location_string)
         short_name = _shorten_display_name(display_name, location_string)
 
         logger.info(f"Geocoded '{location_string}' → ({lat}, {lng})")
@@ -51,13 +54,14 @@ def geocode_location(location_string: str) -> dict:
         }
 
     except requests.RequestException as e:
-        logger.error(f"Nominatim API error for '{location_string}': {e}")
+        logger.error(f"Photon API error for '{location_string}': {e}")
         raise requests.RequestException(
             f"Geocoding service unavailable. Please try again later. Error: {str(e)}"
         )
 
 
 def geocode_multiple(locations: list[str]) -> list[dict]:
+    # No delay needed between calls with Photon
     results = []
     for location in locations:
         result = geocode_location(location)
@@ -65,8 +69,20 @@ def geocode_multiple(locations: list[str]) -> list[dict]:
     return results
 
 
+def _build_display_name(props: dict, fallback: str) -> str:
+    """Build a display name string from Photon property fields."""
+    parts = [
+        props.get('name', ''),
+        props.get('city', props.get('town', props.get('village', ''))),
+        props.get('state', ''),
+        props.get('country', ''),
+    ]
+    display = ', '.join(p for p in parts if p)
+    return display or fallback
+
+
 def _shorten_display_name(display_name: str, fallback: str) -> str:
-    # US state abbreviations map
+    # US state abbreviations map — unchanged from original
     state_abbrevs = {
         'Alabama': 'AL', 'Alaska': 'AK', 'Arizona': 'AZ', 'Arkansas': 'AR',
         'California': 'CA', 'Colorado': 'CO', 'Connecticut': 'CT', 'Delaware': 'DE',
