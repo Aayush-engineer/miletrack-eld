@@ -1,67 +1,79 @@
-export default function LoadingSpinner({ message = 'Planning your route...', subMessage }) {
+import { useEffect, useState } from 'react'
+
+const STEPS = [
+  { icon: '📍', text: 'Geocoding locations via Nominatim…' },
+  { icon: '🗺️', text: 'Fetching route from OSRM…' },
+  { icon: '⏱️', text: 'Simulating HOS compliance…' },
+  { icon: '📋', text: 'Generating ELD log sheets…' },
+]
+
+export default function LoadingSpinner({ message, subMessage }) {
+  const [step, setStep] = useState(0)
+  const [progress, setProgress] = useState(0)
+
+  useEffect(() => {
+    const si = setInterval(() => setStep(s => Math.min(s + 1, STEPS.length - 1)), 4500)
+    const pi = setInterval(() => setProgress(p => Math.min(p + 1, 92)), 180)
+    return () => { clearInterval(si); clearInterval(pi) }
+  }, [])
+
   return (
-    <div className="fixed inset-0 bg-navy/95 backdrop-blur-sm z-50 flex items-center justify-center">
-      <div className="text-center px-8 max-w-sm">
-        <div className="relative mb-8">
-          <div className="w-20 h-20 mx-auto">
-            <svg viewBox="0 0 80 80" className="w-full h-full">
-              <rect x="0" y="62" width="80" height="4" fill="#f5c400" opacity="0.3" rx="2" />
-              <g className="animate-pulse">
-                <rect x="8" y="30" width="44" height="30" rx="3" fill="#1e6eb5" />
-                <rect x="52" y="38" width="20" height="22" rx="3" fill="#2563eb" />
-                <rect x="54" y="40" width="14" height="12" rx="2" fill="#93c5fd" opacity="0.8" />
-                {/* Exhaust */}
-                <rect x="66" y="34" width="4" height="6" rx="2" fill="#374151" />
-              </g>
-              {/* Wheels */}
-              <circle cx="20" cy="64" r="7" fill="#1a2744" />
-              <circle cx="20" cy="64" r="4" fill="#374151" />
-              <circle cx="20" cy="64" r="2" fill="#6b7280" />
-              <circle cx="58" cy="64" r="7" fill="#1a2744" />
-              <circle cx="58" cy="64" r="4" fill="#374151" />
-              <circle cx="58" cy="64" r="2" fill="#6b7280" />
-              <circle cx="20" cy="62" r="1.5" fill="#f5c400" className="animate-spin-slow" style={{ transformOrigin: '20px 64px' }} />
-              <circle cx="58" cy="62" r="1.5" fill="#f5c400" className="animate-spin-slow" style={{ transformOrigin: '58px 64px' }} />
-            </svg>
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center" style={{ background: 'rgba(8,14,27,0.97)', backdropFilter: 'blur(12px)' }}>
+      <div className="w-full max-w-sm px-8 text-center">
+
+        {/* Truck animation */}
+        <div className="relative mb-10 flex justify-center">
+          {/* Outer rings */}
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="w-28 h-28 rounded-full border border-amber-400/15 animate-ping" style={{ animationDuration: '2s' }} />
+          </div>
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="w-20 h-20 rounded-full border border-amber-400/20 animate-ping" style={{ animationDuration: '2s', animationDelay: '0.5s' }} />
           </div>
 
-          {/* Spinning ring */}
-          <div className="absolute -inset-4 border-2 border-fmcsa-yellow/20 rounded-full animate-spin-slow" />
-          <div className="absolute -inset-8 border border-fmcsa-yellow/10 rounded-full animate-spin-slow" style={{ animationDirection: 'reverse', animationDuration: '3s' }} />
+          {/* Truck icon */}
+          <div className="relative w-16 h-16 rounded-2xl bg-amber-400/15 border border-amber-400/20 flex items-center justify-center" style={{ animation: 'float 2s ease-in-out infinite' }}>
+            <svg width="36" height="28" viewBox="0 0 36 28" fill="none">
+              <rect x="0" y="5" width="22" height="17" rx="2" fill="#1e6eb5"/>
+              <rect x="22" y="10" width="12" height="12" rx="1.5" fill="#1a2e52"/>
+              <rect x="24" y="12" width="7" height="6" rx="1" fill="rgba(255,255,255,0.2)"/>
+              <circle cx="6"  cy="23" r="3.5" fill="#0f1c35" stroke="#f5c518" strokeWidth="1"/>
+              <circle cx="16" cy="23" r="3.5" fill="#0f1c35" stroke="#f5c518" strokeWidth="1"/>
+              <circle cx="28" cy="23" r="3.5" fill="#0f1c35" stroke="#f5c518" strokeWidth="1"/>
+              <circle cx="34" cy="15" r="2" fill="#fbbf24"/>
+            </svg>
+          </div>
         </div>
 
-        {/* Progress dots */}
-        <div className="flex justify-center gap-1.5 mb-6">
-          {[0, 1, 2].map((i) => (
-            <div
-              key={i}
-              className="w-2 h-2 rounded-full bg-fmcsa-yellow animate-bounce"
-              style={{ animationDelay: `${i * 0.15}s` }}
-            />
-          ))}
+        {/* Step text */}
+        <div className="mb-2 h-6">
+          <p className="text-white font-semibold text-base anim-fade-in" key={step}>
+            {STEPS[step].icon} {STEPS[step].text}
+          </p>
+        </div>
+        <p className="text-white/35 text-sm mb-8">{subMessage || 'This takes 10–20 seconds'}</p>
+
+        {/* Progress bar */}
+        <div className="w-full bg-white/8 rounded-full h-1.5 overflow-hidden mb-3">
+          <div
+            className="h-full bg-gradient-to-r from-amber-400 to-amber-300 rounded-full transition-all duration-300"
+            style={{ width: `${progress}%` }}
+          />
         </div>
 
-        <h2 className="font-display font-bold text-white text-2xl mb-2">{message}</h2>
-
-        {subMessage && (
-          <p className="text-white/60 text-sm">{subMessage}</p>
-        )}
-
-        {/* Steps */}
-        <div className="mt-8 space-y-2 text-left">
-          {[
-            { icon: '📍', text: 'Geocoding locations via Nominatim' },
-            { icon: '🗺️', text: 'Fetching route from OSRM' },
-            { icon: '⏱️', text: 'Calculating HOS compliance' },
-            { icon: '📋', text: 'Generating ELD log sheets' },
-          ].map((step, idx) => (
-            <div
-              key={idx}
-              className="flex items-center gap-2.5 text-white/50 text-sm animate-pulse"
-              style={{ animationDelay: `${idx * 0.3}s` }}
-            >
-              <span className="text-base">{step.icon}</span>
-              <span>{step.text}</span>
+        {/* Steps list */}
+        <div className="mt-8 space-y-2.5 text-left">
+          {STEPS.map((s, i) => (
+            <div key={i} className={`flex items-center gap-3 text-sm transition-all duration-500 ${i <= step ? 'text-white/70' : 'text-white/20'}`}>
+              <div className={`w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 transition-all duration-300 ${
+                i < step ? 'bg-green-500/20 border border-green-500/40' :
+                i === step ? 'bg-amber-400/20 border border-amber-400/40' :
+                'border border-white/10'
+              }`}>
+                {i < step && <svg className="w-2.5 h-2.5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7"/></svg>}
+                {i === step && <div className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />}
+              </div>
+              <span>{s.text}</span>
             </div>
           ))}
         </div>

@@ -271,6 +271,13 @@ class HOSCalculator:
         cumulative_cycle_hours = self.current_cycle_used_hours
         day_number = 1
 
+        restart_datetimes = set()
+        for seg in self._all_segments:
+            if (seg.status == 'off_duty' and 
+                seg.duration_hours >= RESTART_HOURS - 0.1 and
+                '34-Hr Restart' in seg.location):
+                restart_datetimes.add(seg.start_dt.date())
+
         for date in dates:
             day_start = datetime(date.year, date.month, date.day, 0, 0, 0)
             day_end = day_start + timedelta(days=1)
@@ -313,7 +320,13 @@ class HOSCalculator:
 
             day_miles = round(day_driving_hours * AVERAGE_SPEED_MPH, 1)
             from_loc, to_loc = self._get_day_locations(day_segments)
-            cumulative_cycle_hours = min(cumulative_cycle_hours + day_on_duty_hours, MAX_CYCLE_HOURS)
+            if date in restart_datetimes:
+                cumulative_cycle_hours = day_on_duty_hours
+            else:
+                cumulative_cycle_hours = min(
+                    cumulative_cycle_hours + day_on_duty_hours,
+                    MAX_CYCLE_HOURS
+                )
             remarks = self._build_remarks(day_segments)
 
             segment_dicts = []

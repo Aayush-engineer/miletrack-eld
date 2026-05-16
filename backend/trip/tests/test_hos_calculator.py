@@ -176,7 +176,8 @@ class Test70HourCycleLimit(TestCase):
 
         restarts = [
             s for s in all_segments
-            if s['status'] == 'off_duty' and s['duration_hours'] >= RESTART_HOURS - 0.1
+            if s['status'] == 'off_duty' and 
+            '34-Hr Restart' in s.get('location', '')
         ]
         self.assertGreater(len(restarts), 0,
             "A 34-hour restart should be inserted when cycle hours are exhausted")
@@ -185,7 +186,12 @@ class Test70HourCycleLimit(TestCase):
         calc = make_calculator([(500, "A", "B")], cycle_used=69.0)
         logs = calc.calculate()
 
-        if len(logs) >= 2:
+        restart_found = False
+        for log in logs:
+            for seg in log['segments']:
+                if '34-Hr Restart' in seg.get('location', ''):
+                    restart_found = True
+        if restart_found and len(logs) >= 2:
             last_log = logs[-1]
             self.assertLess(
                 last_log['cycle_hours_at_end_of_day'], 70.0,

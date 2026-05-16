@@ -9,7 +9,7 @@ METERS_PER_MILE = 1609.344
 
 
 def get_route(waypoints: list[dict]) -> dict:
-   if len(waypoints) < 2:
+    if len(waypoints) < 2:
         raise ValueError("At least 2 waypoints required for routing.")
 
     coord_string = ';'.join(
@@ -39,10 +39,8 @@ def get_route(waypoints: list[dict]) -> dict:
         legs_data = route['legs']
         encoded_polyline = route['geometry']
 
-        # Decode the OSRM encoded polyline to [[lat, lng], ...]
         polyline_coords = decode_polyline(encoded_polyline)
 
-        # Build leg summaries
         legs = []
         total_distance_meters = 0
 
@@ -130,10 +128,8 @@ def interpolate_coordinates_along_route(
     if target_distance_miles >= total_distance_miles:
         return polyline[-1]
 
-    # Calculate the fraction along the route
     fraction = target_distance_miles / total_distance_miles
 
-    # Use the fraction to index into the polyline
     target_index = fraction * (len(polyline) - 1)
     lower = int(target_index)
     upper = min(lower + 1, len(polyline) - 1)
