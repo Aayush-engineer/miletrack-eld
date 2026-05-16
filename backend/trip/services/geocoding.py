@@ -1,109 +1,215 @@
+"""
+Geocoding service with automatic fallback chain.
+Provider 1: Nominatim (OpenStreetMap) — primary
+Provider 2: Photon (Komoot)           — fallback 1
+Provider 3: US Census Bureau          — fallback 2
+"""
+import time
 import logging
 import requests
 
 logger = logging.getLogger(__name__)
 
-# ── Photon (komoot) — no rate limits, no API key, same OSM data ──
-PHOTON_URL = "https://photon.komoot.io/api/"
+STATE_ABBREVS = {
+    'Alabama':'AL','Alaska':'AK','Arizona':'AZ','Arkansas':'AR',
+    'California':'CA','Colorado':'CO','Connecticut':'CT','Delaware':'DE',
+    'Florida':'FL','Georgia':'GA','Hawaii':'HI','Idaho':'ID',
+    'Illinois':'IL','Indiana':'IN','Iowa':'IA','Kansas':'KS',
+    'Kentucky':'KY','Louisiana':'LA','Maine':'ME','Maryland':'MD',
+    'Massachusetts':'MA','Michigan':'MI','Minnesota':'MN','Mississippi':'MS',
+    'Missouri':'MO','Montana':'MT','Nebraska':'NE','Nevada':'NV',
+    'New Hampshire':'NH','New Jersey':'NJ','New Mexico':'NM','New York':'NY',
+    'North Carolina':'NC','North Dakota':'ND','Ohio':'OH','Oklahoma':'OK',
+    'Oregon':'OR','Pennsylvania':'PA','Rhode Island':'RI','South Carolina':'SC',
+    'South Dakota':'SD','Tennessee':'TN','Texas':'TX','Utah':'UT',
+    'Vermont':'VT','Virginia':'VA','Washington':'WA','West Virginia':'WV',
+    'Wisconsin':'WI','Wyoming':'WY','District of Columbia':'DC',
+}
 
 
 def geocode_location(location_string: str) -> dict:
-    # No sleep needed — Photon has no rate limits
+    """
+    Geocode a US location string with automatic fallback.
+    Tries 3 providers in order — returns on first success.
 
-    params = {
-        'q': location_string,
-        'limit': 1,
-        'lang': 'en',
-    }
-    headers = {
-        'User-Agent': 'MileTrack-ELD/1.0',
-    }
+    Returns:
+        dict with keys: name (str), lat (float), lng (float)
 
+    Raises:
+        requests.RequestException: if all providers fail
+        ValueError: if location cannot be found in any provider
+    """
+    errors = []
+
+    # ── Provider 1: Nominatim ──────────────────────────────
     try:
-        response = requests.get(
-            PHOTON_URL,
-            params=params,
-            headers=headers,
-            timeout=30
-        )
-        response.raise_for_status()
-        data = response.json()
+        result = _try_nominatim(location_string)
+        if result:
+            logger.info(f"[Nominatim] '{location_string}' → {result['name']} ({result['lat']}, {result['lng']})")
+            return result
+    except Exception as e:
+        errors.append(f"Nominatim: {e}")
+        logger.warning(f"[Nominatim] failed for '{location_string}': {e}")
 
-        if not data.get('features'):
-            raise ValueError(
-                f"Could not geocode location: '{location_string}'. "
-                f"Please use a more specific location (e.g. 'Chicago, IL, USA')."
-            )
+    # ── Provider 2: Photon ─────────────────────────────────
+    try:
+        result = _try_photon(location_string)
+        if result:
+            logger.info(f"[Photon] '{location_string}' → {result['name']} ({result['lat']}, {result['lng']})")
+            return result
+    except Exception as e:
+        errors.append(f"Photon: {e}")
+        logger.warning(f"[Photon] failed for '{location_string}': {e}")
 
-        feature = data['features'][0]
-        coords = feature['geometry']['coordinates']  # Photon returns [lon, lat]
-        props = feature.get('properties', {})
+    # ── Provider 3: US Census Bureau ───────────────────────
+    try:
+        result = _try_census(location_string)
+        if result:
+            logger.info(f"[Census] '{location_string}' → {result['name']} ({result['lat']}, {result['lng']})")
+            return result
+    except Exception as e:
+        errors.append(f"Census: {e}")
+        logger.warning(f"[Census] failed for '{location_string}': {e}")
 
-        lat = float(coords[1])
-        lng = float(coords[0])
+    # All 3 failed
+    raise requests.RequestException(
+        f"All geocoding services failed for '{location_string}'. "
+        f"Check your internet connection. Errors: {' | '.join(errors)}"
+    )
 
-        # Build display name from Photon properties (same structure as before)
-        display_name = _build_display_name(props, location_string)
-        short_name = _shorten_display_name(display_name, location_string)
 
-        logger.info(f"Geocoded '{location_string}' → ({lat}, {lng})")
-        return {
-            'name': short_name,
-            'lat': lat,
-            'lng': lng,
-        }
+# ── Provider implementations ───────────────────────────────────────
 
-    except requests.RequestException as e:
-        logger.error(f"Photon API error for '{location_string}': {e}")
-        raise requests.RequestException(
-            f"Geocoding service unavailable. Please try again later. Error: {str(e)}"
-        )
+def _try_nominatim(location_string: str) -> dict | None:
+    """Nominatim — OpenStreetMap geocoding. Rate limit: 1 req/sec."""
+    time.sleep(1.1)  # Required by Nominatim ToS
+    response = requests.get(
+        'https://nominatim.openstreetmap.org/search',
+        params={
+            'q': location_string,
+            'format': 'json',
+            'limit': 1,
+            'addressdetails': 1,
+            'countrycodes': 'us',
+        },
+        headers={
+            'User-Agent': 'MileTrack-ELD/1.0 (contact@miletrack.example.com)',
+            'Accept-Language': 'en',
+        },
+        timeout=30,
+    )
+    response.raise_for_status()
+    results = response.json()
+
+    if not results:
+        return None
+
+    r    = results[0]
+    addr = r.get('address', {})
+    city = (addr.get('city') or addr.get('town') or
+            addr.get('village') or addr.get('county') or '')
+    state_full = addr.get('state', '')
+    state      = STATE_ABBREVS.get(state_full, state_full)
+    name       = f"{city}, {state}" if city and state else location_string
+
+    return {
+        'name': name,
+        'lat':  float(r['lat']),
+        'lng':  float(r['lon']),
+    }
+
+
+def _try_photon(location_string: str) -> dict | None:
+    """Photon — Komoot geocoding. No rate limit, no API key."""
+    time.sleep(0.3)
+    response = requests.get(
+        'https://photon.komoot.io/api/',
+        params={
+            'q':     location_string,
+            'limit': 1,
+            'lang':  'en',
+            # Bounding box restricts results to continental US
+            'bbox':  '-125.0,24.0,-66.0,50.0',
+        },
+        headers={'User-Agent': 'MileTrack-ELD/1.0'},
+        timeout=30,
+    )
+    response.raise_for_status()
+    data = response.json()
+
+    features = data.get('features', [])
+    if not features:
+        return None
+
+    f      = features[0]
+    props  = f.get('properties', {})
+    coords = f['geometry']['coordinates']  # [lng, lat]
+
+    # Reject non-US results that slipped through
+    country_code = props.get('country_code', '').lower()
+    if country_code not in ('us', 'usa', ''):
+        logger.warning(f"[Photon] rejected non-US result for '{location_string}': {country_code}")
+        return None
+
+    city       = props.get('city') or props.get('town') or props.get('name') or location_string
+    state_full = props.get('state', '')
+    state      = STATE_ABBREVS.get(state_full, state_full)
+    name       = f"{city}, {state}" if city and state else location_string
+
+    return {
+        'name': name,
+        'lat':  float(coords[1]),
+        'lng':  float(coords[0]),
+    }
+
+
+def _try_census(location_string: str) -> dict | None:
+    """
+    US Census Bureau Geocoder — completely free, US only, no API key.
+    Very reliable for US city/state queries.
+    """
+    response = requests.get(
+        'https://geocoding.geo.census.gov/geocoder/locations/onelineaddress',
+        params={
+            'address':   location_string,
+            'benchmark': 'Public_AR_Current',
+            'format':    'json',
+        },
+        timeout=30,
+    )
+    response.raise_for_status()
+    data = response.json()
+
+    matches = data.get('result', {}).get('addressMatches', [])
+    if not matches:
+        return None
+
+    m      = matches[0]
+    coords = m['coordinates']
+    raw    = m.get('matchedAddress', location_string)
+
+    # Shorten "123 Main St, CHICAGO, IL, 60601" → "Chicago, IL"
+    parts = raw.split(',')
+    if len(parts) >= 3:
+        city  = parts[-3].strip().title()
+        state = parts[-2].strip()
+        name  = f"{city}, {state}"
+    elif len(parts) == 2:
+        name = f"{parts[0].strip().title()}, {parts[1].strip()}"
+    else:
+        name = location_string
+
+    return {
+        'name': name,
+        'lat':  float(coords['y']),
+        'lng':  float(coords['x']),
+    }
 
 
 def geocode_multiple(locations: list[str]) -> list[dict]:
-    # No delay needed between calls with Photon
+    """Geocode multiple locations in sequence."""
     results = []
     for location in locations:
         result = geocode_location(location)
         results.append(result)
     return results
-
-
-def _build_display_name(props: dict, fallback: str) -> str:
-    """Build a display name string from Photon property fields."""
-    parts = [
-        props.get('name', ''),
-        props.get('city', props.get('town', props.get('village', ''))),
-        props.get('state', ''),
-        props.get('country', ''),
-    ]
-    display = ', '.join(p for p in parts if p)
-    return display or fallback
-
-
-def _shorten_display_name(display_name: str, fallback: str) -> str:
-    # US state abbreviations map — unchanged from original
-    state_abbrevs = {
-        'Alabama': 'AL', 'Alaska': 'AK', 'Arizona': 'AZ', 'Arkansas': 'AR',
-        'California': 'CA', 'Colorado': 'CO', 'Connecticut': 'CT', 'Delaware': 'DE',
-        'Florida': 'FL', 'Georgia': 'GA', 'Hawaii': 'HI', 'Idaho': 'ID',
-        'Illinois': 'IL', 'Indiana': 'IN', 'Iowa': 'IA', 'Kansas': 'KS',
-        'Kentucky': 'KY', 'Louisiana': 'LA', 'Maine': 'ME', 'Maryland': 'MD',
-        'Massachusetts': 'MA', 'Michigan': 'MI', 'Minnesota': 'MN', 'Mississippi': 'MS',
-        'Missouri': 'MO', 'Montana': 'MT', 'Nebraska': 'NE', 'Nevada': 'NV',
-        'New Hampshire': 'NH', 'New Jersey': 'NJ', 'New Mexico': 'NM', 'New York': 'NY',
-        'North Carolina': 'NC', 'North Dakota': 'ND', 'Ohio': 'OH', 'Oklahoma': 'OK',
-        'Oregon': 'OR', 'Pennsylvania': 'PA', 'Rhode Island': 'RI', 'South Carolina': 'SC',
-        'South Dakota': 'SD', 'Tennessee': 'TN', 'Texas': 'TX', 'Utah': 'UT',
-        'Vermont': 'VT', 'Virginia': 'VA', 'Washington': 'WA', 'West Virginia': 'WV',
-        'Wisconsin': 'WI', 'Wyoming': 'WY', 'District of Columbia': 'DC',
-    }
-
-    parts = [p.strip() for p in display_name.split(',')]
-    city = parts[0] if parts else fallback
-
-    for state_full, state_abbr in state_abbrevs.items():
-        if state_full in display_name:
-            return f"{city}, {state_abbr}"
-
-    return fallback
