@@ -290,7 +290,7 @@ function drawTotalHours(ctx, totalHours) {
 
 function drawRemarks(ctx, remarks, segments) {
   const TOP = GB + 28
-  const H   = 110
+  const H   = 150
 
   R(ctx, 0, TOP, LW, H, C.offWhite)
   L(ctx, 0, TOP,     LW, TOP,     C.navy, 1.4)
@@ -311,14 +311,24 @@ function drawRemarks(ctx, remarks, segments) {
     sorted.forEach(remark => {
       const parts   = remark.split(' - ')
       const timeStr = (parts[0] || '').trim()
-      let loc     = (parts[2] || parts[1] || '').trim()
+      let loc = (parts[2] || parts[1] || '').trim()
       const x       = timeStr ? tx(timeStr) : GL
 
-      console.log("this is backend data bdfore parsing", loc)
-
-      loc = loc.replace('En Route: ', '').replace(/→.*$/, '').replace(' — Pickup', ' (Pickup)').replace(' — Dropoff', ' (Dropoff)').replace(' — Fuel Stop', ' (Fuel)').replace(' — 10-Hr Rest', ' (Rest)').replace(' — 34-Hr Restart', ' (Restart)').replace(' — 30-Min Break', ' (Break)').replace('Fuel Stop — ', '').trim()
-
-      console.log("this is backend data after parsing", loc)
+      if (loc.includes('En Route:')) {
+        loc = loc.replace('En Route: ', '').split(' → ')[0].trim()
+      } else if (loc.includes('Fuel Stop — ')) {
+        loc = loc.replace('Fuel Stop — ', '').trim() + ' (Fuel)'
+      } else if (loc.includes(' — Pickup')) {
+        loc = loc.replace(' — Pickup', '').trim() + ' (Pickup)'
+      } else if (loc.includes(' — Dropoff')) {
+        loc = loc.replace(' — Dropoff', '').trim() + ' (Dropoff)'
+      } else if (loc.includes(' — 10-Hr Rest')) {
+        loc = loc.replace(' — 10-Hr Rest', '').trim() + ' (Rest)'
+      } else if (loc.includes(' — 34-Hr Restart')) {
+        loc = loc.replace(' — 34-Hr Restart', '').trim() + ' (Restart)'
+      } else if (loc.includes(' — 30-Min Break')) {
+        loc = loc.replace(' — 30-Min Break', '').trim() + ' (Break)'
+      }
 
       if (x - lastX < 44) return
       lastX = x
@@ -326,9 +336,28 @@ function drawRemarks(ctx, remarks, segments) {
       const cleaned = loc.replace(/-+$/, '').trimEnd()
       if (!cleaned) return
 
-      const label = cleaned.length > 12
-        ? cleaned.substring(0, 11).replace(/-+$/, '').trimEnd()
-        : cleaned
+      let label
+      const MAX = 14
+      const parenMatch = cleaned.match(/\(([^)]+)\)$/)
+      if (parenMatch) {
+        const suffix   = `${parenMatch[1]}`
+        const cityPart = cleaned.replace(` ${suffix}`, '').trim()
+        const city     = cityPart.split(',')[0].trim()
+        const base     = `${city} ${suffix}`
+        if (base.length < MAX) {
+          const dots  = '.'.repeat(MAX - base.length)
+          label = `${city}${dots}${suffix}`
+        } else {
+          label = base.substring(0, MAX)
+        }
+      } else {
+        const city = cleaned.split(',')[0].trim()
+        if (city.length < MAX) {
+          label = city + ' ' + '–'.repeat(MAX - city.length - 1)
+        } else {
+          label = city.substring(0, MAX)
+        }
+      }
 
       // Vertical tick line down
       L(ctx, x, TOP, x, TOP + 10, C.navy, 2)
@@ -343,7 +372,7 @@ function drawRemarks(ctx, remarks, segments) {
       ctx.font      = 'bold 9.5px Arial'
       ctx.fillStyle = C.textDark
       ctx.textAlign = 'left'
-      ctx.fillText(label, -55, 1)
+      ctx.fillText(label, -66, 1)
       ctx.restore()
     })
   }
