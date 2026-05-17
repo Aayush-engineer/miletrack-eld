@@ -147,14 +147,16 @@ class TripPlanView(APIView):
                     continue
 
                 if seg_status in ('off_duty',) and seg_duration >= 8.0:
-                    # Rest stop
                     progress = min(cumulative_drive_hours / max(total_hours, 1), 1.0)
                     miles_at_stop = progress * total_miles
                     coords = interpolate_coordinates_along_route(polyline, miles_at_stop, total_miles)
 
-                    label = '10-Hour Rest' if seg_duration >= 9.0 else '34-Hour Restart'
                     if seg_duration >= 30.0:
-                        label = '34-Hour Restart'
+                        label            = '34-Hour Restart'
+                        display_duration = RESTART_HOURS        # always 34h
+                    else:
+                        label            = '10-Hour Rest'
+                        display_duration = OFF_DUTY_RESET_HOURS # always 10h
 
                     stops.append({
                         'type': 'rest',
@@ -162,8 +164,8 @@ class TripPlanView(APIView):
                         'lat': coords[0],
                         'lng': coords[1],
                         'arrival_time': f"{day_log['date']}T{seg['start']}:00",
-                        'duration_minutes': int(seg_duration * 60),
-                        'duration_hours': seg_duration,
+                        'duration_minutes': int(display_duration * 60),
+                        'duration_hours': display_duration,
                     })
 
                 elif seg_status == 'on_duty_not_driving' and 'Fuel' in seg.get('location', ''):
