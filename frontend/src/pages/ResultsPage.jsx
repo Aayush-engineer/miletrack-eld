@@ -110,7 +110,14 @@ export default function ResultsPage() {
       {/* ═══ DESKTOP ═══ */}
       <div className="hidden lg:flex" style={{ flex:1, overflow:'hidden' }}>
         {/* Map panel */}
-        <div style={{ flexShrink:0, width:mapFull?'100%':'58%', transition:'width 0.35s cubic-bezier(0.4,0,0.2,1)', position:'relative', overflow:'hidden' }}>
+        <div style={{
+          position: 'relative',
+          overflow: 'hidden',
+          width: mapFull ? '100%' : '58%',       // ← width instead of flex
+          flexShrink: 0,
+          transition: 'width 0.35s cubic-bezier(0.4,0,0.2,1)',
+          minWidth: 0,
+        }}>
           <RouteMap route={route} />
         </div>
 
