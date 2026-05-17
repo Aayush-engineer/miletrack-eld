@@ -100,8 +100,8 @@ export default function HomePage() {
 
       {/* Hero */}
       <div style={{ position:'relative', zIndex:10, maxWidth:1280, margin:'0 auto', padding:'48px 24px 80px' }}>
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:72, alignItems:'start' }}
-          className="block lg:grid" >
+        <div style={{ display:'grid', gap:40, alignItems:'start' }}
+          className="responsive-hero-grid">
 
           {/* Left */}
           <div style={{ opacity: ready ? 1 : 0, transition:'opacity 0.3s' }}>
@@ -174,13 +174,6 @@ export default function HomePage() {
             </div>
           </div>
         </div>
-
-        {/* Mobile: stack form below on small screens */}
-        <style>{`
-          @media (max-width: 1023px) {
-            .hero-grid-container { grid-template-columns: 1fr !important; gap: 40px !important; }
-          }
-        `}</style>
       </div>
 
       {/* How it works */}

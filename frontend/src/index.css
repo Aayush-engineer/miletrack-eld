@@ -141,3 +141,13 @@
 }
 .tab-btn.active { border-bottom-color:#0a1628; color:#0a1628; }
 .tab-btn:hover:not(.active) { color:#6b7280; border-bottom-color:#e5e7eb; }
+
+.responsive-hero-grid {
+  grid-template-columns: 1fr;
+}
+@media (min-width: 1024px) {
+  .responsive-hero-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 72px;
+  }
+}
