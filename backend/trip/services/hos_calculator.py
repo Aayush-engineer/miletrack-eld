@@ -451,15 +451,43 @@ class HOSCalculator:
     def _build_remarks(self, segments):
         remarks = []
         status_labels = {
-            'off_duty': 'Off Duty',
-            'sleeper_berth': 'Sleeper Berth',
-            'driving': 'Driving',
+            'off_duty':            'Off Duty',
+            'sleeper_berth':       'Sleeper Berth',
+            'driving':             'Driving',
             'on_duty_not_driving': 'On Duty (Not Driving)',
         }
+
+        def _remark_label(loc: str) -> str:
+            if '— Pickup' in loc:
+                city = loc.replace(' — Pickup', '').strip()
+                return f"{city} — Pickup"
+            if '— Dropoff' in loc:
+                city = loc.replace(' — Dropoff', '').strip()
+                return f"{city} — Dropoff"
+            if 'Fuel Stop —' in loc:
+                city = loc.replace('Fuel Stop — ', '').strip()
+                return f"{city} — Fuel Stop"
+            if '— 30-Min Break' in loc:
+                city = loc.replace(' — 30-Min Break', '').strip()
+                return f"{city} — 30-Min Break"
+            if '— 10-Hr Rest' in loc:
+                city = loc.replace(' — 10-Hr Rest', '').strip()
+                return f"{city} — 10-Hr Rest"
+            if '— 34-Hr Restart' in loc:
+                city = loc.replace(' — 34-Hr Restart', '').strip()
+                return f"{city} — 34-Hr Restart"
+            if 'En Route:' in loc:
+                # "En Route: Chicago, IL → Dallas, TX" → "Chicago, IL"
+                parts = loc.replace('En Route: ', '').split(' → ')
+                return parts[0].strip()
+            return loc.strip()
+
         prev_status = None
         for seg in segments:
             if seg.status != prev_status:
-                label = status_labels.get(seg.status, seg.status)
-                remarks.append(f"{seg.start_str} - {label} - {seg.location}")
+                label    = status_labels.get(seg.status, seg.status)
+                location = _remark_label(seg.location)
+                remarks.append(f"{seg.start_str} - {label} - {location}")
                 prev_status = seg.status
+
         return remarks
