@@ -113,7 +113,6 @@ export default function TripForm() {
       </div>
 
       <form onSubmit={submit} className="space-y-4">
-        {/* Location fields with visual connector */}
         <div className="relative">
           <div className="absolute left-[17px] top-10 bottom-10 w-px bg-gradient-to-b from-blue-400 via-green-400 to-red-400 z-0 opacity-30" />
           <div className="space-y-3 relative z-10">
@@ -144,7 +143,6 @@ export default function TripForm() {
           </div>
         </div>
 
-        {/* Cycle hours */}
         <div>
           <label className="block text-sm font-semibold text-gray-700 mb-1.5">
             Current Cycle Used (Hrs) <span className="text-red-400">*</span>

@@ -8,7 +8,13 @@ from rest_framework import status
 from .serializers import TripRequestSerializer
 from .services.geocoding import geocode_location
 from .services.routing import get_route, interpolate_coordinates_along_route
-from .services.hos_calculator import HOSCalculator, AVERAGE_SPEED_MPH
+from .services.hos_calculator import (
+    HOSCalculator,
+    AVERAGE_SPEED_MPH,
+    OFF_DUTY_RESET_HOURS,  
+    RESTART_HOURS,           
+    FUEL_STOP_DURATION_HOURS, 
+)
 from .models import TripLog
 
 logger = logging.getLogger(__name__)
